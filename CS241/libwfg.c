@@ -64,7 +64,7 @@ int wfg_add_wait_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 		i++;
 	}
 	if(tempR!=NULL && tempR->heldBy!=NULL && tempR->heldBy->tid==t_id)	//if rid already exists and is held by this edge
-		rv=1;																//we have failed (can't wait on a resource you already have)
+		rv=1;									//we have failed (can't wait on a resource you already have)
 
 	for(i=0; i<queue_size(wfg->rids); i++)
 	{
@@ -87,7 +87,7 @@ int wfg_add_wait_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 
 		if(tempR==NULL)
 		{
-			tempR=malloc(rid_t);
+			tempR=malloc(sizeof(rid_t));
 			tempR->rid=r_id;
 			tempR->heldBy=NULL;
 			tempR->edges=malloc(sizeof(queue_t));
@@ -226,7 +226,7 @@ int wfg_remove_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 			tempE=((edge_t*)queue_at(tempR->edges, i));
 			if(tempE->tid==t_id)
 			{
-				if(tempR->heldBy->tid==((edge_t*)queue_remove(tempR->edges, i))->tid)
+				if(tempR->heldBy->tid==((edge_t*)queue_remove_at(tempR->edges, i))->tid)
 				{
 					tempR->heldBy=NULL;
 				}
