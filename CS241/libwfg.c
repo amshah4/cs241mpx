@@ -46,7 +46,7 @@ void wfg_init(wfg_t *wfg)
 int wfg_add_wait_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 {
 	int rv=0;
-	int i, j;
+	unsigned int i, j;
 	rid_t *tempR=NULL;
 	edge_t *tempE=NULL;
 
@@ -54,7 +54,7 @@ int wfg_add_wait_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 	i=0;
 	while(i<queue_size(wfg->rids) && tempR==NULL)	//finds correct rid
 	{
-		tempR=queue_at(wfg->rids, i);
+		tempR=((rid_t*)queue_at(wfg->rids, i));
 		if(tempR->rid!=r_id)
 		{
 			tempR=NULL;
@@ -68,10 +68,10 @@ int wfg_add_wait_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 
 	for(i=0; i<queue_size(wfg->rids); i++)
 	{
-		rid_t *tr=queue_at(wfg->rids, i);
+		rid_t *tr=((rid_t*)queue_at(wfg->rids, i));
 		for(j=0; j<queue_size(tr->edges); j++)
 		{
-			if(queue_at(tr->edges, j)->waitingOnRid!=NULL)//if edge already exists and is waiting on a resource
+			if(((edge_t*)queue_at(tr->edges, j))->waitingOnRid!=NULL)//if edge already exists and is waiting on a resource
 			{
 				rv=1;
 			}
@@ -94,12 +94,12 @@ int wfg_add_wait_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 			queue_init(tempR->edges);
 
 
-			queue_enqueue(wfg->rids, tempR);
+			queue_enqueue(wfg->rids, ((void*)tempR));
 		}
 
 
 		tempE->waitingOnRid=tempR;
-		queue_enqueue(tempR->edges, tempE);
+		queue_enqueue(tempR->edges, ((void*)tempE));
 	}
 
 
@@ -132,7 +132,7 @@ int wfg_add_wait_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
  */
 int wfg_add_hold_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 {
-	int i;
+	unsigned int i;
 	int rv=1;
 	rid_t *tempR=NULL;
 
@@ -140,7 +140,7 @@ int wfg_add_hold_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 	i=0;
 	while(i<queue_size(wfg->rids) && tempR==NULL)	//finds correct rid
 	{
-		tempR=queue_at(wfg->rids, i);
+		tempR=((rid_t*)queue_at(wfg->rids, i));
 		if(tempR->rid!=r_id)
 		{
 			tempR=NULL;
@@ -155,7 +155,7 @@ int wfg_add_hold_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 		i=0;
 		while(i<queue_size(tempR->edges) && rv!=0)	//finds correct edge
 		{
-			tempR->heldBy=queue_at(tempR->edges, i);
+			tempR->heldBy=((edge_t*)queue_at(tempR->edges, i));
 			if(tempR->heldBy->tid==t_id && tempR->heldBy->waitingOnRid->rid==r_id)
 			{
 				tempR->heldBy->held=1;
@@ -201,16 +201,17 @@ int wfg_add_hold_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 int wfg_remove_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 {
 	int rv=1;
-	int i=0;
+	unsigned int i=0;
 	rid_t *tempR=NULL;
 	edge_t *tempE=NULL;
 
 
 	while(i<queue_size(wfg->rids) && tempR==NULL)	//finds correct rid
 	{
-		if(queue_at(wfg->rids, i)->rid==r_id)
+		tempR=((rid_t*)queue_at(wfg->rids, i));
+		if(tempR->rid!=r_id)
 		{
-			tempR=queue_at(wfg->rids, i);
+			tempR=NULL;
 		}
 
 
@@ -222,9 +223,10 @@ int wfg_remove_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 		i=0;
 		while(i<queue_size(tempR->edges) && rv!=0)
 		{
-			if(queue_at(tempR->edges, i)->tid==t_id)
+			tempE=((edge_t*)queue_at(tempR->edges, i));
+			if(tempE->tid==t_id)
 			{
-				if(tempR->heldBy->tid==queue_remove(tempR->edges, i))
+				if(tempR->heldBy->tid==((edge_t*)queue_remove(tempR->edges, i))->tid)
 				{
 					tempR->heldBy=NULL;
 				}

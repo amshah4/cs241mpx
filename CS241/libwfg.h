@@ -13,7 +13,7 @@ typedef struct _wfg_t
 typedef struct _rid_t
 {
 	unsigned int rid;
-	edge_t *heldBy;
+	struct _edge_t *heldBy;
 	queue_t *edges;
 
 } rid_t;
@@ -22,7 +22,7 @@ typedef struct _edge_t
 {
 	int held;		//bool
 	pthread_t tid;
-	rid_t *waitingOnRid;
+	struct _rid_t *waitingOnRid;
 
 } edge_t;
 
