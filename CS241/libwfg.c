@@ -140,9 +140,10 @@ int wfg_add_hold_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 	i=0;
 	while(i<queue_size(wfg->rids) && tempR==NULL)	//finds correct rid
 	{
-		if(queue_at(wfg->rids, i)->rid==r_id)
+		tempR=queue_at(wfg->rids, i);
+		if(tempR->rid!=r_id)
 		{
-			tempR=queue_at(wfg->rids, i);
+			tempR=NULL;
 		}
 
 
@@ -155,7 +156,7 @@ int wfg_add_hold_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 		while(i<queue_size(tempR->edges) && rv!=0)	//finds correct edge
 		{
 			tempR->heldBy=queue_at(tempR->edges, i);
-			if(tempR->heldBy->tid==t_id)
+			if(tempR->heldBy->tid==t_id && tempR->heldBy->waitingOnRid->rid==r_id)
 			{
 				tempR->heldBy->held=1;
 				tempR->heldBy->waitingOnRid=NULL;
@@ -223,8 +224,7 @@ int wfg_remove_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 		{
 			if(queue_at(tempR->edges, i)->tid==t_id)
 			{
-				tempE=queue_remove(tempR->edges, i);
-				if(tempR->heldBy==tempE)
+				if(tempR->heldBy->tid==queue_remove(tempR->edges, i))
 				{
 					tempR->heldBy=NULL;
 				}
@@ -340,6 +340,7 @@ void wfg_destroy(wfg_t *wfg)
 			free(queue_dequeue(tempR->edges));
 		}
 		queue_destroy(tempR->edges);				//destroy edge queue
+		free(tempR->edges);
 
 		free(tempR);							//delete the resource that now has no associated edges
 	}
