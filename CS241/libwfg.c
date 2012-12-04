@@ -285,11 +285,77 @@ int wfg_remove_edge(wfg_t *wfg, pthread_t t_id, unsigned int r_id)
 int wfg_get_cycle(wfg_t *wfg, pthread_t** cycle)
 {
 	int count=0;
+	unsigned int i, j;
+	int found=0;	//bool
+	int notFinished;	//bool
+	rid_t *tempR=NULL;
+	edge_t *next=NULL;
+	queue_t *path=malloc(sizeof(queue_t));
 
 
+	i=0;
+	while(i<queue_size(wfg->rids) && !found)	//for each rid
+	{
+		tempR=((rid_t*)queue_at(wfg->rids, i));
+		notFinished=1;
+		queue_init(path);
+		queue_enqueue(path, tempR->heldBy);
 
 
+		if(((edge_t*)queue_at(path, 0))->waitingOnRid !=NULL)
+		{
+			next=((edge_t*)queue_at(path, 0))->waitingOnRid->heldBy;	//start off the queue
 
+			while(notFinished)
+			{
+				if(next!=NULL)
+				{
+					if(next->tid==queue_at(path, 0))
+					{
+						found=1;
+						notFinished=0;
+					}
+					else
+					{
+						for(j=0; j<queue_size(path); j++)
+						{
+							if(((edge_t*)queue_at(path, j))->tid==next->tid)
+							{
+								notFinished=0;
+							}
+						}
+					}
+
+					queue_enqueue(path, next);
+					if(next->waitingOnRid==NULL)
+						notFinished=0;
+					else
+						next=next->waitingOnRid->heldBy;
+				}
+				else
+					notFinished=0;
+			}
+
+			if(found)
+			{
+				count=queue_size(path);
+				(*cycle)=malloc(count*sizeof(int));
+
+				i=0;
+				while(queue_size(path))
+				{
+					(*cycle)[i]=((pthread)queue_dequeue(path));
+					i++;
+				}
+			}
+		}
+
+		queue_destroy(path);
+		i++;
+	}
+
+
+	free(path);
 	return count;
 }
 
