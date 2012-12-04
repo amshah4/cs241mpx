@@ -310,7 +310,7 @@ int wfg_get_cycle(wfg_t *wfg, pthread_t** cycle)
 			{
 				if(next!=NULL)
 				{
-					if(next->tid==queue_at(path, 0))
+					if(next->tid==((edge_t*)queue_at(path, 0)))
 					{
 						found=1;
 						notFinished=0;
@@ -344,7 +344,7 @@ int wfg_get_cycle(wfg_t *wfg, pthread_t** cycle)
 				i=0;
 				while(queue_size(path))
 				{
-					(*cycle)[i]=((pthread)queue_dequeue(path));
+					(*cycle)[i]=((edge_t*)queue_dequeue(path))->tid;
 					i++;
 				}
 			}
@@ -387,7 +387,6 @@ int wfg_get_cycle(wfg_t *wfg, pthread_t** cycle)
 void wfg_print_graph(wfg_t *wfg)
 {
 	unsigned int i, j;
-	int rv=1;
 	int isFirstPrinted=1;	//bool=true
 	rid_t *tempR=NULL;
 	edge_t *tempE=NULL;
