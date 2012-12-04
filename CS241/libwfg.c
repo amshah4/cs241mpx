@@ -320,7 +320,39 @@ int wfg_get_cycle(wfg_t *wfg, pthread_t** cycle)
  */
 void wfg_print_graph(wfg_t *wfg)
 {
+	unsigned int i, j;
+	int rv=1;
+	int isFirstPrinted=1;	//bool=true
+	rid_t *tempR=NULL;
+	edge_t *tempE=NULL;
 
+
+	for(i=0; i<queue_size(wfg->rids); i++)
+	{
+		tempR=((rid_t*)queue_at(wfg->rids, i));
+		if(tempR->heldBy!=NULL)
+		{
+			for(j=0; j<queue_size(tempR->edges); j++)
+			{
+				tempE=((edge_t*)queue_at(tempR->edges, j));
+				if(tempE->tid!=tempR->heldBy->tid)
+				{
+					if(isFirstPrinted)
+					{
+						printf("%u=>%u", tempE->tid, tempR->heldBy->tid);
+						isFirstPrinted=0;	//=false
+					}
+					else
+					{
+						printf(", %u=>%u", tempE->tid, tempR->heldBy->tid);
+					}
+				}
+			}
+		}
+	}
+
+
+	return;
 }
 
 
