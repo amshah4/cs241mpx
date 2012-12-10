@@ -16,6 +16,7 @@ enum drmmode_t
 typedef struct _drm_t
 {
 	pthread_mutex_t *ptMutex;
+	int mutexNum;
 
 } drm_t;
 

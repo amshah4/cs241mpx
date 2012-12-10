@@ -10,6 +10,9 @@
 
 //GLOBALS
 enum drmmode_t mMode;
+int mutexNum=0;
+int prevLocked=-1;
+wfg_t *lockGraph;
 
 
 /**
@@ -27,7 +30,12 @@ enum drmmode_t mMode;
  */
 void drm_setmode(enum drmmode_t mode)
 {
+	lockGraph=malloc(sizeof(wfg_t));
+	wfg_init(lockGraph);
+
 	mMode=mode;
+
+
 	return;
 }
 
@@ -38,6 +46,10 @@ void drm_setmode(enum drmmode_t mode)
  */
 void drm_cleanup()
 {
+	wfg_destroy(lockGraph);
+	free(lockGraph);
+
+
 	return;
 }
 
@@ -59,6 +71,10 @@ void drm_init(drm_t *mutex)
 
 	mutex->ptMutex=malloc(sizeof(pthread_mutex_t));
 	pthread_mutex_init(mutex->ptMutex, &attr);
+
+	mutex->mutexNum=mutexNum;
+	mutexNum++;
+
 
 
 	pthread_mutexattr_destroy(&attr);
@@ -87,7 +103,25 @@ void drm_init(drm_t *mutex)
  */
 int drm_lock(drm_t *mutex)
 {
-	return pthread_mutex_lock(mutex->ptMutex);
+	if(mMode==NO_DEADLOCK_CHECKING)
+	{
+		return pthread_mutex_lock(mutex->ptMutex);
+	}
+	else if(mMode==DEADLOCK_PREVENTION)
+	{
+		int rv=1;
+		if(prevLocked<mutex->mutexNum)
+		{
+			rv=pthread_mutex_lock(mutex->ptMutex);
+			if(rv==0)
+				prevLocked=mutex->mutexNum;
+		}
+
+
+		return rv;
+	}
+	else
+		return -1;	//should never reach here
 }
 
 
