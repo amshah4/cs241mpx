@@ -32,7 +32,6 @@ queue_t *tids, *clients;
 
 //FUNCTION PROTOTYPES
 void* handleConnection(void* nothing);
-int finishedReceiving(char buffer[4096], unsigned int lastIndex);
 
 
 /**
@@ -147,13 +146,13 @@ void* handleConnection(void *clifd)
 	int clientfd=*((int*)clifd);
 	int keepReceiving, connectionIsAlive=1;	//bools
 	unsigned int len;
-	char buffer[4096];
 
 
 	while(connectionIsAlive)
 	{
 		len=0;
 		keepReceiving=1;
+		char buffer[4096];
 
 
 		//PART 3a
@@ -161,7 +160,10 @@ void* handleConnection(void *clifd)
 		{
 			len+=recv(clientfd, &(buffer[len]), 4096-len, 0);
 
-			if(len>=4 && finishedReceiving(buffer, len-1))//if finished receiving, end loop
+			if(len>=4 &&	buf[len-4]=='\r' &&
+							buf[len-3]=='\n' &&
+							buf[len-2]=='\r' &&
+							buf[len-1]=='\n')//if finished receiving, end loop
 			{
 				keepReceiving=0;
 			}
@@ -176,36 +178,57 @@ void* handleConnection(void *clifd)
 
 		if(connectionIsAlive)
 		{
+			int i=0, j;				//indexes
+			int notEOLine=1;
+			queue_t *parsedHeader;
+			queue_init(&parsedHeader);
+
+
 			//PART 3b
+			while(i<len)
+			{
+				char lineBuffer[4096];
+				j=0;
 
+
+				while(notEOLine)
+				{
+					lineBuffer[j]=buffer[i];
+					if(lineBuffer[j]=='\n')
+						notEOLine=0;
+					j++;
+					i++;
+				}
+				lineBuffer[j]='\0';
+
+				char *temp=malloc(1024*sizeof(char));
+				if(queue_size(&parsedHeader)==0)
+				{
+					strcpy(temp, process_http_header_request(lineBuffer));
+				}
+				else
+				{
+					strcpy(temp, lineBuffer);
+				}
+				queue_enqueue(&parsedHeader, temp);
+			}
+
+
+			//PART 3c
+
+
+
+
+
+			//CLEANUP
+			while(queue_size(&parsedHeader))
+			{
+				free(queue_dequeue(&parsedHeader));
+			}
+			queue_destroy(&parsedHeader);
 		}
-
-
-		queue_destroy(header);
-		free(header);
 	}
 
 
 	return NULL;
-}
-
-
-/* checks if last 4 chars of a buffer are \r\n\r\n
- *
- * @param - buffer, unsigned int index of last char
- * @return - 0 if last 4 char's
- */
-int finishedReceiving(char buf[4096], unsigned int lastIndex)
-{
-	int rv=0;
-
-
-	if(		buf[lastIndex-3]=='\r' &&
-			buf[lastIndex-2]=='\n' &&
-			buf[lastIndex-1]=='\r' &&
-			buf[lastIndex]=='\n')
-		rv=1;
-
-
-	return rv;
 }
