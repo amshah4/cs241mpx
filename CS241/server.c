@@ -52,6 +52,7 @@ char* process_http_header_request(const char *request)
 	if (strncmp(request, "GET ", 4) != 0)
 		return NULL;
 
+
 	// Ensure the function was called properly...
 	assert( strstr(request, "\r") == NULL );
 	assert( strstr(request, "\n") == NULL );
@@ -206,6 +207,7 @@ void* handleConnection(void *clifd)
 			{
 				char lineBuffer[4096];
 				j=0;
+				notEOLine=1;
 
 
 				while(notEOLine)
@@ -221,7 +223,9 @@ void* handleConnection(void *clifd)
 				char *temp=malloc(1024*sizeof(char));
 				if(queue_size(&parsedHeader)==0)//if request line
 				{
-					strcpy(temp, process_http_header_request(lineBuffer));
+					strcpy(temp, lineBuffer);
+					temp[strlen(temp)-2]='\0';
+					strcpy(temp, process_http_header_request(temp));
 				}
 				else
 				{
@@ -229,6 +233,7 @@ void* handleConnection(void *clifd)
 				}
 				queue_enqueue(&parsedHeader, ((void*)temp));
 			}
+
 
 
 			//PART 3cdef
@@ -281,7 +286,7 @@ void* handleConnection(void *clifd)
 				else
 				{
 					//200
-					sprintf(responseln, "HTTP/1.1 200 %s", HTTP_200_STRING);
+					sprintf(responseln, "HTTP/1.1 200 %s\r\n", HTTP_200_STRING);
 
 					int size=strlen(filename);
 					char extention[4];
@@ -397,7 +402,7 @@ void handlecc(int sig)
 	while(queue_size(clients))
 	{
 		int *temp=queue_dequeue(clients);
-		close(*temp);
+		shutdown(*temp, 2);
 		free(temp);
 	}
 	while(queue_size(tids))
