@@ -202,7 +202,7 @@ void* handleConnection(void *clifd)
 				lineBuffer[j]='\0';
 
 				char *temp=malloc(1024*sizeof(char));
-				if(queue_size(&parsedHeader)==0)
+				if(queue_size(&parsedHeader)==0)//if request line
 				{
 					strcpy(temp, process_http_header_request(lineBuffer));
 				}
@@ -210,11 +210,119 @@ void* handleConnection(void *clifd)
 				{
 					strcpy(temp, lineBuffer);
 				}
-				queue_enqueue(&parsedHeader, temp);
+				queue_enqueue(&parsedHeader, ((void*)temp));
 			}
 
 
-			//PART 3c
+			//PART 3cdef
+			char filename[1024];
+			filename[0]='\0';
+			strcat(filename, "web");
+			FILE *file=NULL;
+
+			char responseln[1024];
+			responseln[0]='\0';
+			char contentType[1024];
+			contentType[0]='\0';
+			int contentLength=0;
+			char connection[1024];
+			connection[0]='\0';
+			char *content=malloc(4096*sizeof(char));
+			content[0]='\0';
+
+
+			//Set responseln, contentType, contentLength, and content
+			if(((char*)queue_at(&parsedHeader, 0))==NULL)	//501 Response
+			{
+				//501
+				sprintf(responseln, "HTTP/1.1 501 %s\r\n", HTTP_501_STRING);
+				strcat(contentType, "Content-Type: text/html\r\n");
+				sprintf(contentLength, "Content-Length: %d\r\n", strlen(HTTP_501_CONTENT));
+				strcat(content, HTTP_501_CONTENT);
+			}
+			else
+			{
+				if(strcmp(((char*)queue_at(&parsedHeader, 0)), "/")==0)
+				{
+					strcat(filename, "/index.html");
+				}
+				else
+				{
+					strcat(filename, ((char*)queue_at(&parsedHeader, 0)));
+				}
+				file=fopen(filename, "r");
+
+				if(file==NULL)
+				{
+					//404
+					sprintf(responseln, "HTTP/1.1 404 %s\r\n", HTTP_404_STRING);
+					strcat(contentType, "Content-Type: text/html\r\n");
+					sprintf(contentLength, "Content-Length: %d\r\n", strlen(HTTP_404_CONTENT));
+					strcat(content, HTTP_404_CONTENT);
+				}
+				else
+				{
+					//200
+					sprintf(responseln, "HTTP/1.1 200 %s", HTTP_200_STRING);
+
+					int size=strlen(filename);
+					char extention[4];
+					extention[0]=filename[size-3];
+					extention[1]=filename[size-2];
+					extention[2]=filename[size-1];
+					extention[3]='\0';
+					if(strcmp(extention, "tml")==0)
+					{
+						strcat(contentType, "Content-Type: text/html\r\n");
+					}
+					else if(strcmp(extention, "css")==0)
+					{
+						strcat(contentType, "Content-Type: text/css\r\n");
+					}
+					else if(strcmp(extention, "jpg")==0)
+					{
+						strcat(contentType, "Content-Type: image/jpeg\r\n");
+					}
+					else if(strcmp(extention, "png")==0)
+					{
+						strcat(contentType, "Content-Type: image/png\r\n");
+					}
+					else
+					{
+						strcat(contentType, "Content-Type: text/plain\r\n");
+					}
+
+					fseek(file, 0, SEEK_END);
+					size=ftell(file);
+					fseek(file, 0, SEEK_SET);
+					sprintf(contentLength, "Content-Length: %d\r\n", size);
+
+					free(content);
+					content=malloc((size+1)*sizeof(char));
+					content[0]='\0';
+					char line[size];
+					while(fgets(line, size, file) != NULL)
+					{
+						strcat(content, line);
+					}
+				}
+			}
+
+			int i=0;
+			while(i<queue_size(&parsedHeader))
+			{
+				if(strcasecmp(((char*)queue_at(&parsedHeader, i)), "Connection: Keep-Alive\r\n")==0)
+					strcat(connection, "Connection: Keep-Alive\r\n");
+
+
+				i++;
+			}
+			if(strlen(connection)==0)
+				strcat(connection, "Connection: close\r\n");
+
+
+			//At this point, all parts of the packet are finished. Time to combine and send()
+
 
 
 
@@ -226,9 +334,10 @@ void* handleConnection(void *clifd)
 				free(queue_dequeue(&parsedHeader));
 			}
 			queue_destroy(&parsedHeader);
+			free(content);
 		}
 	}
 
-
+	//close socket/////////////////////////////////////////////////////////////
 	return NULL;
 }
