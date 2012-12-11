@@ -32,6 +32,7 @@ queue_t *tids, *clients;
 
 //FUNCTION PROTOTYPES
 void* handleConnection(void* nothing);
+void handlecc(int sig);
 
 
 /**
@@ -82,6 +83,13 @@ int main(int argc, char **argv)
 	clients=malloc(sizeof(queue_t));
 	queue_init(tids);
 	queue_init(clients);
+
+
+	struct sigaction cc;	//ctrl+c handlerer
+	cc.sa_handler=handlecc;
+	cc.sa_flags=0;
+	sigemptyset(&cc.sa_mask);
+	sigaction(SIGINT, &cc, NULL);
 
 
 	//PART 1
@@ -224,7 +232,8 @@ void* handleConnection(void *clifd)
 			responseln[0]='\0';
 			char contentType[1024];
 			contentType[0]='\0';
-			int contentLength=0;
+			char contentLength[1024];
+			contentLength[0]='\0';
 			char connection[1024];
 			connection[0]='\0';
 			char *content=malloc(4096*sizeof(char));
@@ -312,20 +321,29 @@ void* handleConnection(void *clifd)
 			while(i<queue_size(&parsedHeader))
 			{
 				if(strcasecmp(((char*)queue_at(&parsedHeader, i)), "Connection: Keep-Alive\r\n")==0)
-					strcat(connection, "Connection: Keep-Alive\r\n");
+				{
+					strcat(connection, "Connection: Keep-Alive\r\n\r\n");
+				}
 
 
 				i++;
 			}
 			if(strlen(connection)==0)
-				strcat(connection, "Connection: close\r\n");
+			{
+				strcat(connection, "Connection: close\r\n\r\n");
+				connectionIsAlive=0;
+			}
 
 
 			//At this point, all parts of the packet are finished. Time to combine and send()
-
-
-
-
+			char *packet=malloc((	strlen(responseln) +
+									strlen(contentType) +
+									strlen(contentLength) +
+									strlen(connection) +
+									strlen(content) +
+									1)*sizeof(char));
+			sprintf(packet, "%s%s%s%s%s", responseln, contentType, contentLength, connection, content);
+			send(clientfd, packet, strlen(packet)*sizeof(char), 0);
 
 
 			//CLEANUP
@@ -335,9 +353,26 @@ void* handleConnection(void *clifd)
 			}
 			queue_destroy(&parsedHeader);
 			free(content);
+			free(packet);
 		}
 	}
 
-	//close socket/////////////////////////////////////////////////////////////
+	close(clientfd);
 	return NULL;
+}
+
+
+//PART 4
+/* callback function to catch and handle ctrl+c
+ *
+ * @param - int signal
+ * @return - all threads terminate, each closing their socket, and any memory left unfreed is now freed
+ */
+void handlecc(int sig)
+{
+	free(hints);
+	free(result);
+
+
+	return;
 }
