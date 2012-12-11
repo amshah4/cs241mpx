@@ -26,7 +26,6 @@ const char *HTTP_200_STRING = "OK";
 const char *HTTP_404_STRING = "Not Found";
 const char *HTTP_501_STRING = "Not Implemented";
 
-struct addrinfo *hints, *result;
 queue_t *tids, *clients;
 pthread_mutex_t *lock;
 
@@ -84,6 +83,7 @@ int main(int argc, char **argv)
 	clients=malloc(sizeof(queue_t));
 	queue_init(tids);
 	queue_init(clients);
+	struct addrinfo hints, *result;
 
 
 	pthread_mutexattr_t attr;
@@ -112,7 +112,7 @@ int main(int argc, char **argv)
 	hints.ai_family=AF_INET;
 	hints.ai_socktype=SOCK_STREAM;
 	hints.ai_flags=AI_PASSIVE;
-	if(getaddrinfo(NULL, argv[1]/*port*/, hints, &result)!=0)
+	if(getaddrinfo(NULL, argv[1]/*port*/, &hints, &result)!=0)
 	{
 		perror("getadderinfo() failed\n");
 		exit(1);
@@ -129,6 +129,7 @@ int main(int argc, char **argv)
 		perror("listen() failed\n");
 		exit(1);
 	}
+	free(result);
 
 
 	//PART 2
@@ -176,10 +177,10 @@ void* handleConnection(void *clifd)
 		{
 			len+=recv(clientfd, &(buffer[len]), 4096-len, 0);
 
-			if(len>=4 &&	buf[len-4]=='\r' &&
-							buf[len-3]=='\n' &&
-							buf[len-2]=='\r' &&
-							buf[len-1]=='\n')//if finished receiving, end loop
+			if(len>=4 &&	buffer[len-4]=='\r' &&
+							buffer[len-3]=='\n' &&
+							buffer[len-2]=='\r' &&
+							buffer[len-1]=='\n')//if finished receiving, end loop
 			{
 				keepReceiving=0;
 			}
@@ -194,9 +195,9 @@ void* handleConnection(void *clifd)
 
 		if(connectionIsAlive)
 		{
-			int i=0, j;				//indexes
+			unsigned int i=0, j;				//indexes
 			int notEOLine=1;
-			queue_t *parsedHeader;
+			queue_t parsedHeader;
 			queue_init(&parsedHeader);
 
 
@@ -254,7 +255,7 @@ void* handleConnection(void *clifd)
 				//501
 				sprintf(responseln, "HTTP/1.1 501 %s\r\n", HTTP_501_STRING);
 				strcat(contentType, "Content-Type: text/html\r\n");
-				sprintf(contentLength, "Content-Length: %d\r\n", strlen(HTTP_501_CONTENT));
+				sprintf(contentLength, "Content-Length: %d\r\n", (unsigned int)strlen(HTTP_501_CONTENT));
 				strcat(content, HTTP_501_CONTENT);
 			}
 			else
@@ -274,7 +275,7 @@ void* handleConnection(void *clifd)
 					//404
 					sprintf(responseln, "HTTP/1.1 404 %s\r\n", HTTP_404_STRING);
 					strcat(contentType, "Content-Type: text/html\r\n");
-					sprintf(contentLength, "Content-Length: %d\r\n", strlen(HTTP_404_CONTENT));
+					sprintf(contentLength, "Content-Length: %d\r\n", (unsigned int)strlen(HTTP_404_CONTENT));
 					strcat(content, HTTP_404_CONTENT);
 				}
 				else
@@ -325,8 +326,8 @@ void* handleConnection(void *clifd)
 				}
 			}
 
-			int i=0;
-			while(i<queue_size(&parsedHeader))
+			i=0;
+			while(i<((unsigned int)queue_size(&parsedHeader)))
 			{
 				if(strcasecmp(((char*)queue_at(&parsedHeader, i)), "Connection: Keep-Alive\r\n")==0)
 				{
@@ -367,7 +368,7 @@ void* handleConnection(void *clifd)
 
 
 	close(clientfd);
-	int i;
+	unsigned int i;
 
 	//CRITICAL ZONE
 	pthread_mutex_lock(lock);
@@ -393,10 +394,6 @@ void* handleConnection(void *clifd)
  */
 void handlecc(int sig)
 {
-	free(hints);
-	free(result);
-
-
 	while(queue_size(clients))
 	{
 		int *temp=queue_dequeue(clients);
