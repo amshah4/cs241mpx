@@ -28,6 +28,7 @@ const char *HTTP_501_STRING = "Not Implemented";
 
 struct addrinfo *hints, *result;
 queue_t *tids, *clients;
+pthread_mutex_t *lock;
 
 
 //FUNCTION PROTOTYPES
@@ -83,6 +84,13 @@ int main(int argc, char **argv)
 	clients=malloc(sizeof(queue_t));
 	queue_init(tids);
 	queue_init(clients);
+
+
+	pthread_mutexattr_t attr;
+	pthread_mutexattr_init(&attr);
+	lock=malloc(sizeof(pthread_mutex_t));
+	pthread_mutex_init(lock, &attr);
+	pthread_mutexattr_destroy(&attr);
 
 
 	struct sigaction cc;	//ctrl+c handlerer
@@ -357,7 +365,22 @@ void* handleConnection(void *clifd)
 		}
 	}
 
+
 	close(clientfd);
+	int i;
+
+	//CRITICAL ZONE
+	pthread_mutex_lock(lock);
+	for(i=0; i<queue_size(clients); i++)
+	{
+		if(*((int*)queue_at(clients, i))==clientfd)
+		{
+			free(queue_remove_at(clients, i));
+		}
+	}
+	pthread_mutex_unlock(lock);
+	//END CRITICAL ZONE
+
 	return NULL;
 }
 
@@ -374,5 +397,26 @@ void handlecc(int sig)
 	free(result);
 
 
-	return;
+	while(queue_size(clients))
+	{
+		int *temp=queue_dequeue(clients);
+		close(*temp);
+		free(temp);
+	}
+	while(queue_size(tids))
+	{
+		pthread_t *tid=queue_dequeue(tids);
+		void **dummy;
+		pthread_join(*tid, dummy);
+	}
+	queue_destroy(tids);
+	queue_destroy(clients);
+	free(tids);
+	free(clients);
+	pthread_mutex_destroy(lock);
+	free(lock);
+
+
+	exit(0);
+	return;		//should never be reached
 }
